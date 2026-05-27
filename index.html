@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="favicon.png">
+<title>Factions of the Forged Seas — Server Status</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* steel-grey panels */
+    --glass: rgba(18, 28, 42, .62);
+    --glass-deep: rgba(10, 18, 30, .75);
+    --glass-border: rgba(90, 120, 160, .22);
+    --text: #cdd6e0;
+    --text-dim: #7a8fa0;
+    /* aquamarine accents */
+    --accent: #4de8c4;
+    --accent-glow: rgba(77, 232, 196, .25);
+    --green: #3ddcaa;
+    --red: #ff7b7b;
+    --gold: #e8c050;
+    --radius: 14px;
+  }
+
+  html { height: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    min-height: 100%;
+    background:
+      radial-gradient(ellipse 120% 60% at 50% 0%, rgba(20,50,80,.3) 0%, transparent 60%),
+      linear-gradient(180deg, #080e18 0%, #101e30 30%, #0c1622 60%, #050a10 100%);
+    background-attachment: fixed;
+    position: relative;
+  }
+
+  /* background image layer */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url('background.png') center/cover no-repeat;
+    filter: saturate(.5) brightness(.38) hue-rotate(5deg);
+    z-index: 0;
+  }
+
+  /* vignette / depth darkening */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(3,8,16,.5) 100%),
+      linear-gradient(180deg, rgba(0,10,20,.25) 0%, transparent 35%, rgba(0,6,12,.35) 100%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* subtle caustics animation */
+  @keyframes caustics {
+    0%, 100% { opacity: .06; }
+    50%      { opacity: .12; }
+  }
+  #caustics {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 300px 200px at 20% 40%, rgba(60,100,160,.1), transparent),
+      radial-gradient(ellipse 250px 180px at 70% 30%, rgba(50,90,140,.08), transparent),
+      radial-gradient(ellipse 200px 150px at 50% 70%, rgba(70,110,170,.07), transparent);
+    animation: caustics 8s ease-in-out infinite;
+  }
+
+  /* bubbles */
+  @keyframes bubble-rise {
+    0%   { transform: translateY(0) scale(1); opacity: 0; }
+    10%  { opacity: .25; }
+    90%  { opacity: .15; }
+    100% { transform: translateY(-100vh) scale(.5); opacity: 0; }
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- layout ---- */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 14px;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 20px 32px;
+  }
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .left-col, .right-col { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- glassmorphism base ---- */
+  .card, .status-bar, .refresh-bar {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  }
+
+  /* ---- banner header ---- */
+  .server-header {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid var(--glass-border);
+  }
+  .banner-img {
+    width: 100%;
+    height: 170px;
+    object-fit: cover;
+    display: block;
+  }
+  .banner-vignette {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(12,18,28,.55) 100%),
+      linear-gradient(180deg, rgba(12,18,28,.3) 0%, transparent 30%, rgba(12,18,28,.4) 100%);
+    pointer-events: none;
+  }
+
+  /* ---- tentacles ---- */
+  @keyframes tentacle-sway {
+    0%, 100% { transform: translateY(0) scaleY(1) rotate(-8deg); opacity: .45; }
+    35%      { transform: translateY(-15px) scaleY(1.15) rotate(-12deg); opacity: .65; }
+    70%      { transform: translateY(8px) scaleY(.88) rotate(-5deg); opacity: .3; }
+  }
+  @keyframes tentacle-sway-2 {
+    0%, 100% { transform: translateY(0) scaleY(1) rotate(8deg); opacity: .4; }
+    40%      { transform: translateY(10px) scaleY(1.2) rotate(14deg); opacity: .6; }
+    65%      { transform: translateY(-10px) scaleY(.85) rotate(4deg); opacity: .25; }
+  }
+  .tentacle-tip {
+    position: absolute;
+    width: 40px;
+    height: 120px;
+    background: radial-gradient(ellipse at 30% 50%, rgba(100,120,155,.45) 0%, rgba(60,75,100,.15) 60%, transparent 100%);
+    border-radius: 60% 40% 50% 50% / 70% 30% 40% 30%;
+    pointer-events: none;
+    z-index: 2;
+    filter: blur(2px);
+  }
+  .tl-1 { left: -18px; top: 0%; animation: tentacle-sway 9s ease-in-out infinite; }
+  .tl-2 { left: -22px; top: 30%; animation: tentacle-sway-2 11s ease-in-out infinite 2.5s; transform: rotate(6deg); }
+  .tl-3 { left: -15px; top: 60%; animation: tentacle-sway 10s ease-in-out infinite 5s; }
+  .tr-1 { right: -18px; top: 10%; animation: tentacle-sway-2 10s ease-in-out infinite 1.5s; transform: rotate(8deg); }
+  .tr-2 { right: -22px; top: 40%; animation: tentacle-sway 12s ease-in-out infinite 3.5s; transform: rotate(6deg); }
+  .tr-3 { right: -15px; top: 70%; animation: tentacle-sway-2 11s ease-in-out infinite 5.5s; transform: rotate(10deg); }
+
+  /* ---- server links row ---- */
+  .server-links-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  }
+  .domain-badge {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(77,232,196,.08);
+    border: 1px solid rgba(77,232,196,.2);
+    border-radius: 8px;
+    padding: 6px 14px;
+    white-space: nowrap;
+    text-shadow: 0 0 10px rgba(77,232,196,.2);
+    letter-spacing: .3px;
+  }
+
+  /* ---- platform links ---- */
+  .platform-links { display: flex; gap: 7px; flex-shrink: 0; }
+  .platform-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #e0f5f0;
+    text-decoration: none;
+    font-size: 0.73rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background .25s, box-shadow .25s;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    backdrop-filter: blur(6px);
+    text-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .platform-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .platform-cf {
+    background: rgba(241,100,54,.2);
+    border-color: rgba(241,100,54,.4);
+  }
+  .platform-cf:hover {
+    background: rgba(241,100,54,.35);
+    box-shadow: 0 0 16px rgba(241,100,54,.15);
+  }
+  .platform-tp {
+    background: rgba(19,137,210,.15);
+    border-color: rgba(19,137,210,.35);
+  }
+  .platform-tp:hover {
+    background: rgba(19,137,210,.28);
+    box-shadow: 0 0 16px rgba(19,137,210,.12);
+  }
+  .platform-discord {
+    background: rgba(88,101,242,.18);
+    border-color: rgba(88,101,242,.4);
+  }
+  .platform-discord:hover {
+    background: rgba(88,101,242,.32);
+    box-shadow: 0 0 16px rgba(88,101,242,.15);
+  }
+
+  /* ---- basic card ---- */
+  .card, .status-bar { padding: 14px 16px; }
+  .card-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .mods-card .card-title {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(77,232,196,.25), rgba(77,232,196,.15));
+    border: 1px solid rgba(77,232,196,.35);
+    border-radius: 8px;
+    padding: 5px 14px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 8px rgba(77,232,196,.3);
+    box-shadow: 0 0 12px rgba(77,232,196,.1);
+  }
+
+  /* ---- status bar ---- */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .status-bar .time { font-size: 0.75rem; color: var(--text-dim); }
+
+  /* ---- badge ---- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 13px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+  .badge.online  { background: rgba(61,220,132,.12); color: var(--green);  border: 1px solid rgba(61,220,132,.2); }
+  .badge.offline { background: rgba(255,107,107,.12); color: var(--red);    border: 1px solid rgba(255,107,107,.2); }
+  .badge .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .badge.online .dot { pulse-shadow 2s ease-in-out infinite; }
+  .badge.offline .dot { animation: none; }
+  @keyframes pulse-shadow {
+    0%, 100% { box-shadow: 0 0 6px currentColor; }
+    50%      { box-shadow: 0 0 14px currentColor, 0 0 4px currentColor; }
+  }
+
+  /* ---- motd ---- */
+  .motd {
+    font-size: 0.86rem;
+    color: var(--text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    opacity: .85;
+  }
+
+  /* ---- tags ---- */
+  .tags { display: flex; flex-wrap: wrap; gap: 7px; }
+  .tag {
+    background: rgba(77,232,196,.06);
+    border: 1px solid rgba(77,232,196,.12);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .tag .l { color: var(--text-dim); margin-right: 5px; font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; }
+
+  /* ---- stats grid ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .stat-item {
+    background: rgba(77,232,196,.04);
+    border: 1px solid rgba(77,232,196,.08);
+    border-radius: 10px;
+    padding: 11px 8px;
+    text-align: center;
+  }
+  .stat-item .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); text-shadow: 0 0 12px rgba(77,232,196,.25); }
+  .stat-item .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-top: 3px; }
+
+  /* ---- players ---- */
+  .player-list { display: flex; flex-wrap: wrap; gap: 5px; }
+  .player-chip {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(77,232,196,.06);
+    border: 1px solid rgba(77,232,196,.1);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+  .player-chip img { width: 20px; height: 20px; border-radius: 4px; image-rendering: pixelated; }
+  .empty-note { color: var(--text-dim); font-size: 0.8rem; font-style: italic; padding: 4px 0; }
+
+  /* ---- mods ---- */
+  .mods-scroll {
+    max-height: 520px; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(77,232,196,.3) transparent;
+    padding-right: 4px;
+  }
+  .mods-scroll::-webkit-scrollbar { width: 8px; }
+  .mods-scroll::-webkit-scrollbar-track { background: transparent; }
+  .mods-scroll::-webkit-scrollbar-thumb { background: rgba(77,232,196,.3); border-radius: 4px; }
+  .mods-scroll::-webkit-scrollbar-thumb:hover { background: rgba(77,232,196,.5); }
+
+  .mod-entry {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(77,232,196,.06);
+    font-size: 0.78rem;
+  }
+  .mod-entry:last-child { border-bottom: none; }
+  .mod-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
+  .mod-ver  { color: var(--text-dim); flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+  .mods-count-note {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    padding-top: 8px;
+    border-top: 1px solid rgba(77,232,196,.1);
+    margin-top: 4px;
+    letter-spacing: .3px;
+  }
+
+  /* ---- refresh ---- */
+  .refresh-bar {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 10px 16px;
+  }
+  .refresh-bar button {
+    background: rgba(77,232,196,.08);
+    color: var(--accent);
+    border: 1px solid rgba(77,232,196,.2);
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s, border-color .2s;
+    font-weight: 600;
+    letter-spacing: .3px;
+    backdrop-filter: blur(6px);
+  }
+  .refresh-bar button:hover {
+    background: rgba(77,232,196,.15);
+    border-color: rgba(77,232,196,.35);
+    box-shadow: 0 0 14px rgba(77,232,196,.1);
+  }
+
+  /* ---- loading / error ---- */
+  .center-msg {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 80vh; gap: 14px; color: var(--text-dim);
+    position: relative; z-index: 1;
+  }
+  .center-msg span { text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+
+  .spinner {
+    width: 34px; height: 34px;
+    border: 3px solid rgba(77,232,196,.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    box-shadow: 0 0 16px rgba(77,232,196,.15);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+
+  footer {
+    position: relative; z-index: 1;
+    text-align: center;
+    margin-top: auto;
+    padding: 0 20px 20px;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    opacity: .6;
+  }
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity .2s;
+  }
+  footer a:hover { opacity: .8; }
+</style>
+</head>
+<body>
+
+<div id="caustics"></div>
+
+<div class="wrapper">
+  <div id="app">
+    <div class="center-msg" id="loading">
+      <div class="spinner"></div>
+      <span>Diving in…</span>
+    </div>
+
+    <div class="center-msg hidden" id="error-msg">
+      <span style="font-size:2.2rem">🫧</span>
+      <span id="error-text">Could not fetch data</span>
+    </div>
+
+    <div class="hidden" id="content">
+      <div class="layout">
+        <!-- ===== LEFT COLUMN ===== -->
+        <div class="left-col">
+
+          <!-- banner -->
+          <div class="server-header">
+            <img class="banner-img" src="banner.png" alt="">
+            <div class="banner-vignette"></div>
+            <div class="tentacle-tip tl-1"></div>
+            <div class="tentacle-tip tl-2"></div>
+            <div class="tentacle-tip tl-3"></div>
+            <div class="tentacle-tip tr-1"></div>
+            <div class="tentacle-tip tr-2"></div>
+            <div class="tentacle-tip tr-3"></div>
+          </div>
+
+          <!-- server address + platform links -->
+          <div class="server-links-row">
+            <div class="domain-badge">forgedseas.cubed.pro</div>
+            <div class="platform-links">
+              <a href="https://www.curseforge.com/minecraft/modpacks/factions-of-the-forged-seas"
+                 class="platform-link platform-cf" target="_blank" rel="noopener" title="CurseForge">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff">
+                  <path d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/>
+                </svg>
+                CurseForge
+              </a>
+              <a href="https://www.technicpack.net/modpack/factions-of-the-forged-seas.2002123"
+                 class="platform-link platform-tp" target="_blank" rel="noopener" title="Technic">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1464.248 1452.156" width="16" height="16" fill="#1389D2">
+                  <path d="M644.592 5.192c159.049-19.094 324.188 14.764 461.941 96.756 143.299 84.188 256.41 218.769 313.509 374.945 62.353 168.133 58.63 359.689-10.432 525.205-63.691 154.529-182.775 285.021-330.227 363.417-149.71 80.709-327.849 105.845-494.333 71.979-172.465-34.279-331.022-133.533-437.232-273.729C51.059 1037.725-2.015 878.924.058 719.941c.548-167.949 63.08-334.559 172.343-461.998C290.451 118.177 462.794 25.934 644.592 5.192m-120.67 181.494c-131.408 49.538-243.479 148.488-308.511 273.003-60.641 114.509-80.038 249.94-54.906 377.018 25.076 130.193 97.609 250.192 200.162 334.012 101.76 84.247 232.924 131.896 365.063 132.754-.795-37.831-.366-75.591-1.04-113.416-.792-31.415-30.866-53.744-59.722-58.563-.917 28.305.119 62.895-24.771 82.113-23.731 16.288-55.638 15.919-82.479 8.782-27.149-7.626-42.216-35.808-43.011-62.532-1.647-40.565-.244-81.196-.729-121.828-10.86-.059-21.781-.059-32.702-.059-.06-35.442-.06-70.892 0-106.273 10.92-.065 21.84-.125 32.762-.125 0-12.076 0-24.093-.06-36.115-14.033-4.635-30.263-10.188-35.934-25.379-14.033-33.186 3.417-70.462-10.188-103.891-13.911-35.203-27.759-74.125-14.825-111.888 7.992-26.598 34.042-43.56 61.007-45.694-.06-76.808 0-153.553-.06-230.358-.429-40.754 16.288-82.725 48.924-108.164 37.215-29.525 86.57-37.092 132.812-36.786 102.921.061 203.701 48.864 270.2 126.893-.124 18.362 0 36.727-.124 55.149-92.185.061-184.359-.063-276.54 0-10.006-1.828-19.523 7.505-17.754 17.569.304 58.812-.549 117.682-.308 176.492 17.021.061 34.104.304 51.125-.488 2.866-11.774 6.038-23.425 9.454-35.019 74.982 18.424 149.893 36.789 224.809 55.335-2.502 8.6-4.938 17.266-7.382 25.927-6.588 2.5-13.177 5.001-19.767 7.504-2.621 203.154-4.331 406.363-6.648 609.514 176.251-60.091 319.795-208.828 369.755-388.73 39.415-137.021 25.262-288.622-39.527-415.699-63.628-126.646-175.579-227.98-307.72-279.104-133.783-52.65-287.092-53.321-421.365-1.954m140.741 710.665c0 11.401 0 22.817.063 34.221 10.125.06 20.253.06 30.381.06.061 35.448.061 70.896 0 106.34-10.128 0-20.315 0-30.442.059v32.333c19.949.06 39.961.06 59.909-.061-.917-57.646-.365-115.305-1.283-172.95a9391.232 9391.232 0 0 0-58.628-.002z"/>
+                </svg>
+                Technic
+              </a>
+              <a href="https://discord.gg/YSAghQEq42"
+                 class="platform-link platform-discord" target="_blank" rel="noopener" title="Discord">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#5865F2">
+                  <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
+                </svg>
+                Discord
+              </a>
+            </div>
+          </div>
+
+          <!-- status bar -->
+          <div class="status-bar">
+            <div class="badge" id="status-badge">
+              <div class="dot"></div>
+              <span id="status-text">—</span>
+            </div>
+            <span class="time" id="last-update"></span>
+          </div>
+
+          <!-- motd -->
+          <div class="card" id="motd-card">
+            <div class="card-title">MOTD</div>
+            <div class="motd" id="motd"></div>
+          </div>
+
+          <!-- info -->
+          <div class="card">
+            <div class="card-title">Info</div>
+            <div class="tags" id="tags-row"></div>
+            <div class="stats" id="stats-grid"></div>
+          </div>
+
+          <!-- players -->
+          <div class="card" id="players-card">
+            <div class="card-title" id="players-title">Players Online</div>
+            <div class="player-list" id="player-list"></div>
+          </div>
+
+        </div>
+
+        <!-- ===== RIGHT COLUMN: MODS ===== -->
+        <div class="right-col">
+          <div class="card mods-card">
+            <div class="card-title" id="mods-title">Mods</div>
+            <div class="mods-scroll" id="mods-list"></div>
+            <div class="mods-count-note" id="mods-count-note"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- refresh -->
+      <div style="max-width:1100px;margin:0 auto;padding:0 20px 8px;">
+        <div class="refresh-bar">
+          <button onclick="fetchStatus()">Refresh</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Data via <a href="https://api.mcsrvstat.us/" target="_blank" rel="noopener">mcsrvstat.us</a>
+  </footer>
+</div>
+
+<script>
+const API = 'https://api.mcsrvstat.us/3/forgedseas.cubed.pro';
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function render(data) {
+  const online = data.online === true;
+
+  // subtract GodlyCupOfTea from online count
+  const godlyOnline = online && data.players?.list?.some(p => p.name === 'GodlyCupOfTea') ? 1 : 0;
+  const displayOnline = online ? Math.max(0, (data.players?.online ?? 0) - godlyOnline) : 0;
+
+  // badge
+  const badge = document.getElementById('status-badge');
+  badge.className = 'badge ' + (online ? 'online' : 'offline');
+  document.getElementById('status-text').textContent = online ? 'Online' : 'Offline';
+
+  // motd
+  const motdCard = document.getElementById('motd-card');
+  if (data.motd && data.motd.clean && data.motd.clean.length) {
+    document.getElementById('motd').textContent = data.motd.clean.join('\n');
+    motdCard.classList.remove('hidden');
+  } else {
+    motdCard.classList.add('hidden');
+  }
+
+  // tags — no ping, no protocol
+  const tagsRow = document.getElementById('tags-row');
+  tagsRow.innerHTML = '';
+  if (data.software)
+    tagsRow.innerHTML += `<div class="tag"><span class="l">Software</span>${esc(data.software)}</div>`;
+  if (data.version)
+    tagsRow.innerHTML += `<div class="tag"><span class="l">MC Version</span>${esc(data.version)}</div>`;
+
+  // stats grid — no ping/query
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = '';
+  if (online) {
+    const items = [
+      { label: 'Online', value: displayOnline },
+      { label: 'Max',    value: data.players?.max || '—' },
+    ];
+    items.forEach(s => {
+      grid.innerHTML += `<div class="stat-item">
+        <div class="value">${esc(String(s.value))}</div>
+        <div class="label">${esc(s.label)}</div>
+      </div>`;
+    });
+  } else {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);font-size:.83rem;padding:8px;font-style:italic">
+      Server is offline
+    </div>`;
+  }
+
+  // players
+  const pCard  = document.getElementById('players-card');
+  const pList  = document.getElementById('player-list');
+  const pTitle = document.getElementById('players-title');
+  if (online) {
+    pCard.classList.remove('hidden');
+    const list = data.players?.list;
+    pTitle.textContent = `Players Online (${displayOnline}/${data.players?.max ?? '?'})`;
+    if (list && list.length) {
+      pList.innerHTML = '';
+      list.forEach(p => {
+        if (p.name === 'GodlyCupOfTea') return;
+        const uuid = p.uuid || p.id || '';
+        const skinUrl = uuid
+          ? `https://mc-heads.net/avatar/${esc(uuid)}/20`
+          : `https://mc-heads.net/avatar/${esc(p.name)}/20`;
+        pList.innerHTML += `<div class="player-chip">
+          <img src="${skinUrl}" alt="" loading="lazy"
+               onerror="this.style.opacity='.15'">
+          <span>${esc(p.name)}</span>
+        </div>`;
+      });
+    } else {
+      pList.innerHTML = '<span class="empty-note">No players online</span>';
+    }
+  } else {
+    pCard.classList.add('hidden');
+  }
+
+  // mods
+  const modsList      = document.getElementById('mods-list');
+  const modsTitle     = document.getElementById('mods-title');
+  const modsCountNote = document.getElementById('mods-count-note');
+  if (Array.isArray(data.mods) && data.mods.length) {
+    modsTitle.textContent = `Mods (${data.mods.length})`;
+    modsCountNote.textContent = '';
+    const sorted = [...data.mods].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+    modsList.innerHTML = '';
+    sorted.forEach(m => {
+      modsList.innerHTML += `<div class="mod-entry">
+        <span class="mod-name" title="${esc(m.name)}">${esc(m.name)}</span>
+        <span class="mod-ver">${esc(m.version || '')}</span>
+      </div>`;
+    });
+  } else {
+    modsTitle.textContent = 'Mods';
+    modsCountNote.textContent = '';
+    modsList.innerHTML = '<div class="empty-note">No mod info available</div>';
+  }
+
+  // updated time
+  if (data.debug?.cachetime) {
+    const d = new Date(data.debug.cachetime * 1000);
+    document.getElementById('last-update').textContent =
+      'Updated: ' + d.toLocaleTimeString('en-US', { hour12: false });
+  } else {
+    document.getElementById('last-update').textContent =
+      'Updated: ' + new Date().toLocaleTimeString('en-US', { hour12: false });
+  }
+}
+
+async function fetchStatus() {
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('error-msg').classList.add('hidden');
+  document.getElementById('content').classList.add('hidden');
+
+  try {
+    const r = await fetch(API);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+    render(data);
+  } catch (e) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('error-msg').classList.remove('hidden');
+    document.getElementById('error-text').textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+}
+
+fetchStatus();
+setInterval(fetchStatus, 60000);
+</script>
+</body>
+</html>
